@@ -2,9 +2,11 @@ package service
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"sync"
 	"workmate_test_project/internal/model"
+	"workmate_test_project/internal/util"
 )
 
 // TaskService - сервис для работы с задачами, он состоит из:
@@ -35,20 +37,28 @@ func NewTaskService() *TaskService {
 	}
 }
 
-func (service *TaskService) CreateTask() (*model.Task, error) {
+func (service *TaskService) CreateTask(zipArchivePath string, zipArchiveName string) (*model.Task, error) {
 	select {
 	case service.tasksSlot <- struct{}{}:
 		service.mutex.Lock()
+		defer service.mutex.Unlock()
 
 		service.id++
+
+		archiveFile, zipWriter, err := util.CreateZIPArchive(zipArchivePath, zipArchiveName)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка создания архива: %w", err)
+		}
+
 		task := &model.Task{
 			ID:               service.id,
 			Files:            []string{},
 			FileCountChannel: make(chan string, 3),
 			DoneChannel:      make(chan struct{}),
+			ArchiveFile:      archiveFile,
+			ArchiveWriter:    zipWriter,
 		}
 		service.tasks[task.ID] = task
-		service.mutex.Unlock()
 
 		return task, nil
 
@@ -57,8 +67,8 @@ func (service *TaskService) CreateTask() (*model.Task, error) {
 	}
 }
 
-func (service *TaskService) AddFileToTask(taskId int, file string) error {
-	extension := filepath.Ext(file)
+func (service *TaskService) AddFileToTask(taskId int, fileURL string, fileName string) error {
+	extension := filepath.Ext(fileURL)
 	if _, exist := fileExtension[extension]; exist == false {
 		return fmt.Errorf("не поддерживаемое расширение файла")
 	}
@@ -74,9 +84,20 @@ func (service *TaskService) AddFileToTask(taskId int, file string) error {
 	}
 
 	select {
-	case task.FileCountChannel <- file:
-		return nil
+	case task.FileCountChannel <- fileURL:
+		defer func() {
+			<-task.FileCountChannel
+		}()
+
+		go func() {
+			err := util.DownloadAndAddToZip(task.ArchiveWriter, fileURL, fileName)
+			if err != nil {
+				log.Printf("ошибка скачивания или добавления файла в zip архив: %v", err)
+			}
+			task.DoneChannel <- struct{}{}
+		}()
 	default:
 		return fmt.Errorf("одновременно может обрабатываться только 3 файла")
 	}
+	return nil
 }
