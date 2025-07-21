@@ -16,9 +16,11 @@ import (
 type Task struct {
 	ID               int
 	Files            []string
-	FileCountChannel chan string
+	FileCountChannel chan struct{}
 	DoneChannel      chan struct{}
 	ArchiveWriter    *zip.Writer
 	ArchiveFile      *os.File
 	ArchiveLink      string
+	Status           string
+	FilesAdded       int
 }

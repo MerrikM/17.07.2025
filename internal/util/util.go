@@ -22,7 +22,7 @@ import (
 // Учтите, что вызов этой функции не закрывает ни файл, ни zip.Writer.
 // После завершения работы нужно самостоятельно их закрыть.
 func CreateZIPArchive(archivePath string, archiveName string) (*os.File, *zip.Writer, error) {
-	archive, err := os.Create(filepath.Join(archivePath, archiveName))
+	archive, err := os.Create(filepath.Join(archivePath, archiveName+".zip"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("ошибка создания .zip архива: %w", err)
 	}

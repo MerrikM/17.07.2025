@@ -1,8 +1,8 @@
 package service
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sync"
 	"workmate_test_project/internal/model"
@@ -37,8 +37,27 @@ func NewTaskService() *TaskService {
 	}
 }
 
-func (service *TaskService) CreateTask(zipArchivePath string, zipArchiveName string) (*model.Task, error) {
+// GetTaskStatusById возвращает задачу по её ID.
+// Если задача с таким ID не найдена, возвращается ошибка.
+func (service *TaskService) GetTaskStatusById(ctx context.Context, taskId int) (*model.Task, error) {
+	task, exist := service.tasks[taskId]
+	if exist == false {
+		return nil, fmt.Errorf("задача с id = %d не найдена", taskId)
+	}
+
+	return task, nil
+}
+
+// CreateTask создает новую задачу с архивом ZIP в указанном пути и имени.
+// Метод использует контекст для отмены операции и ограничивает
+// количество одновременно создаваемых задач через канал tasksSlot.
+// Возвращает созданную задачу или ошибку, если архив не удалось создать
+// или сервер занят.
+func (service *TaskService) CreateTask(ctx context.Context, zipArchivePath string, zipArchiveName string) (*model.Task, error) {
 	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+
 	case service.tasksSlot <- struct{}{}:
 		service.mutex.Lock()
 		defer service.mutex.Unlock()
@@ -47,16 +66,19 @@ func (service *TaskService) CreateTask(zipArchivePath string, zipArchiveName str
 
 		archiveFile, zipWriter, err := util.CreateZIPArchive(zipArchivePath, zipArchiveName)
 		if err != nil {
+			<-service.tasksSlot
 			return nil, fmt.Errorf("ошибка создания архива: %w", err)
 		}
 
 		task := &model.Task{
 			ID:               service.id,
 			Files:            []string{},
-			FileCountChannel: make(chan string, 3),
+			FileCountChannel: make(chan struct{}, 3),
 			DoneChannel:      make(chan struct{}),
 			ArchiveFile:      archiveFile,
 			ArchiveWriter:    zipWriter,
+			Status:           "создана",
+			ArchiveLink:      zipArchivePath + "/" + zipArchiveName + ".zip",
 		}
 		service.tasks[task.ID] = task
 
@@ -67,7 +89,18 @@ func (service *TaskService) CreateTask(zipArchivePath string, zipArchiveName str
 	}
 }
 
-func (service *TaskService) AddFileToTask(taskId int, fileURL string, fileName string) error {
+// AddFileToTask добавляет один файл к задаче с заданным taskId.
+// Метод проверяет расширение файла и контролирует максимальное количество файлов,
+// обновляет статус задачи и формирует zip архив с добавленными файлами.
+// Ограничение на обработку файлов реализовано через канал FileCountChannel,
+// для соблюдения услвоия, что для 1 задачи не более 3 файлов.
+//
+// Метод является синхронным, но безопасно может вызываться из отдельной горутины,
+// чтобы, например, вызывать его в отдельном методе для загрузки сразу нескольких файлов.
+// Содержимое case task.FileCountChannel <- struct{}{}: можно обернуть в отдельную горутину,
+// чтобы сделать выполнение полностью асинхронным. Однако в этом случае управление и обработка ошибок
+// станут менее контролируемыми.
+func (service *TaskService) AddFileToTask(ctx context.Context, taskId int, fileURL string, fileName string) error {
 	extension := filepath.Ext(fileURL)
 	if _, exist := fileExtension[extension]; exist == false {
 		return fmt.Errorf("не поддерживаемое расширение файла")
@@ -76,28 +109,55 @@ func (service *TaskService) AddFileToTask(taskId int, fileURL string, fileName s
 	var task *model.Task
 
 	service.mutex.Lock()
-	task, exist := service.tasks[taskId]
-	service.mutex.Unlock()
+	task, err := service.GetTaskStatusById(ctx, taskId)
 
-	if exist == false {
-		return fmt.Errorf("задача с id = %d не найдена", taskId)
+	if err != nil {
+		service.mutex.Unlock()
+		return fmt.Errorf("не удалось найти задачу: %w", err)
 	}
 
+	if task.FilesAdded >= 3 {
+		service.mutex.Unlock()
+		return fmt.Errorf("достигнут максимальный лимит файлов в задаче")
+	}
+
+	task.Status = "выполняется"
+	service.mutex.Unlock()
+
 	select {
-	case task.FileCountChannel <- fileURL:
+	case <-ctx.Done():
+		return ctx.Err()
+
+	case task.FileCountChannel <- struct{}{}:
 		defer func() {
 			<-task.FileCountChannel
 		}()
 
-		go func() {
-			err := util.DownloadAndAddToZip(task.ArchiveWriter, fileURL, fileName)
-			if err != nil {
-				log.Printf("ошибка скачивания или добавления файла в zip архив: %v", err)
+		if err := util.DownloadAndAddToZip(task.ArchiveWriter, fileURL, fileName); err != nil {
+			return fmt.Errorf("ошибка обработки файла: %v", err)
+		}
+
+		service.mutex.Lock()
+		task.FilesAdded++
+		task.Files = append(task.Files, fileName)
+
+		if task.FilesAdded == 3 {
+			task.Status = "завершена"
+			if err := task.ArchiveWriter.Close(); err != nil {
+				service.mutex.Unlock()
+				return fmt.Errorf("ошибка закрытия архива: %v", err)
 			}
-			task.DoneChannel <- struct{}{}
-		}()
+			if err := task.ArchiveFile.Close(); err != nil {
+				service.mutex.Unlock()
+				return fmt.Errorf("ошибка закрытия файла: %v", err)
+			}
+			<-service.tasksSlot
+		}
+
+		service.mutex.Unlock()
+
+		return nil
 	default:
 		return fmt.Errorf("одновременно может обрабатываться только 3 файла")
 	}
-	return nil
 }
