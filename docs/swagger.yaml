@@ -1,0 +1,143 @@
+basePath: /api-tasks
+definitions:
+  handler.AddFileToTaskRequest:
+    properties:
+      fileName:
+        example: test3
+        type: string
+      fileURL:
+        example: https://example.com/file.pdf
+        type: string
+      taskID:
+        example: 1
+        type: integer
+    type: object
+  handler.AddFileToTaskResponse:
+    properties:
+      message:
+        example: файлы успешно добавлен к вашей задаче
+        type: string
+      taskID:
+        example: 1
+        type: integer
+    type: object
+  handler.CreateTaskRequest:
+    properties:
+      zipArchiveName:
+        example: test1
+        type: string
+      zipArchivePath:
+        example: G:/GithubRepo/17.07.2025/internal/util
+        type: string
+    type: object
+  handler.CreateTaskResponse:
+    properties:
+      message:
+        example: 'id вашей задачи: '
+        type: string
+      taskID:
+        example: 1
+        type: integer
+    type: object
+  handler.TaskStatusResponse:
+    properties:
+      archiveLink:
+        example: G:/GithubRepo/17.07.2025/internal/util/task_1.zip
+        type: string
+      status:
+        example: завершена
+        type: string
+      taskID:
+        example: 1
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Тестовое задание на позицию Junior Go-разработчик
+  title: Auth API Service
+  version: "1.0"
+paths:
+  /add-file-to-task:
+    post:
+      consumes:
+      - application/json
+      description: Добавляет файл в архив задачи, ограничение — максимум 3 файла на
+        задачу.
+      parameters:
+      - description: Данные для добавления файла
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AddFileToTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Файл успешно добавлен к задаче
+          schema:
+            $ref: '#/definitions/handler.AddFileToTaskResponse'
+        "400":
+          description: Неверный формат JSON или превышен лимит файлов
+          schema:
+            type: string
+      summary: Добавить файл к задаче
+      tags:
+      - tasks
+  /create-task:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт задачу, для которой можно добавлять файлы в ZIP архив.
+      parameters:
+      - description: Путь и имя архива
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ с ID созданной задачи
+          schema:
+            $ref: '#/definitions/handler.CreateTaskResponse'
+        "400":
+          description: Неверный формат JSON
+          schema:
+            type: string
+        "503":
+          description: Ошибка создания задачи
+          schema:
+            type: string
+      summary: Создание новой задачи
+      tags:
+      - tasks
+  /get:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает статус задачи и ссылку на архив (если все файлы добавлены).
+      parameters:
+      - description: ID задачи
+        in: query
+        name: task-id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.TaskStatusResponse'
+        "400":
+          description: некорректный ID задачи или задача не найдена
+          schema:
+            type: string
+      summary: Получить статус задачи
+      tags:
+      - tasks
+swagger: "2.0"
