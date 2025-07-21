@@ -223,7 +223,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api-tasks",
 	Schemes:          []string{},
-	Title:            "Auth API Service",
+	Title:            "Junior Go-разработчик",
 	Description:      "Тестовое задание на позицию Junior Go-разработчик",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

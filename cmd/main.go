@@ -16,7 +16,7 @@ import (
 	"workmate_test_project/internal/service"
 )
 
-// @title Auth API Service
+// @title Junior Go-разработчик
 // @version 1.0
 // @description Тестовое задание на позицию Junior Go-разработчик
 

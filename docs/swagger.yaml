@@ -55,7 +55,7 @@ host: localhost:8080
 info:
   contact: {}
   description: Тестовое задание на позицию Junior Go-разработчик
-  title: Auth API Service
+  title: Junior Go-разработчик
   version: "1.0"
 paths:
   /add-file-to-task:

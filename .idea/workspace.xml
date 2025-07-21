@@ -4,17 +4,7 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3f608cc9-f23c-4845-909d-602a26ecdcc1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/17.07.2025.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/17.07.2025.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmd/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/model/task.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/model/task.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/service/task_service.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/service/task_service.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/util/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/util/util.go" afterDir="false" />
-    </list>
+    <list default="true" id="3f608cc9-f23c-4845-909d-602a26ecdcc1" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
